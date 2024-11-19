@@ -111,7 +111,7 @@ app.post('/chat', async (req, res) => {
 // Health check endpoint
 app.get('/', (req, res) => {
   console.log("Health check endpoint hit.");
-  res.send('Chatbot server is running.');
+  res.send('Chatbot service is running.');
 });
 
 // Start the server and listen on 0.0.0.0 to make it accessible externally
