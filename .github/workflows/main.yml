@@ -1,4 +1,4 @@
-name: Deploy Chatbot Microservice
+name: Deploy Chatbot Service to EC2
 
 on:
   push:
@@ -10,33 +10,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v3
+      # Step 1: Check out the repository
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: 18
+      # Step 2: Add SSH key for EC2 access
+      - name: Add SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H 54.80.19.33 >> ~/.ssh/known_hosts
 
-    - name: Copy Files to EC2
-      env:
-        PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
-        EC2_HOST: 54.80.19.33
-        EC2_USER: ec2-user
-      run: |
-        mkdir -p ~/.ssh
-        echo "$PRIVATE_KEY" > ~/.ssh/ewans-ms.pem
-        chmod 600 ~/.ssh/ewans-ms.pem
-        scp -i ~/.ssh/ewans-ms.pem -r . ${EC2_USER}@${EC2_HOST}:/home/${EC2_USER}/chatbot-ms
-
-    - name: Install and Restart Service on EC2
-      env:
-        EC2_HOST: 54.80.19.33
-        EC2_USER: ec2-user
-      run: |
-        ssh -i ~/.ssh/ewans-ms.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
-        cd /home/ec2-user/chatbot-ms
-        npm install
-        pm2 stop chatbot-ms || true
-        pm2 start index.js --name chatbot-ms
-        EOF
+      # Step 3: Deploy code to EC2 instance
+      - name: Deploy code to EC2
+        run: |
+          rsync -avz --exclude='node_modules' --exclude='.git' -e "ssh -i ~/.ssh/id_rsa" ./ ec2-user@54.80.19.33:/home/ec2-user/chatbot-ms/
+          ssh -i ~/.ssh/id_rsa ec2-user@54.80.19.33 'cd /home/ec2-user/chatbot-ms && npm install && pm2 restart all'
